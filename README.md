@@ -186,7 +186,8 @@ source install/setup.bash
 
 ros2 run carla_manual_control carla_manual_control \
   --ros-args \
-  -p role_name:=ego_vehicle
+  -p role_name:=ego_vehicle \
+  -r /carla/ego_vehicle/rgb_view/image:=/carla/ego_vehicle/front_cam/image
 ```
 
 실행 후 Pygame 창이 열리면 창을 클릭하고 `B`를 눌러 수동 제어를 활성화 하고 아래 조작키에 맞춰 조작한다.
