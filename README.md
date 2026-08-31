@@ -174,7 +174,34 @@ ros2 launch heven_carla_bringup heven_bringup.launch.py launch_rviz:=false
 5. `sensor_gate`가 센서 6개의 완전한 동기 세트 5개를 확인한다.
 6. `/heven/sensors_ready=True`를 발행한다.
 
-## 7. 토픽 계약
+## 7. 수동 조작
+
+새 ROS 터미널에서 실행한다.
+
+```bash
+cd ~/2026_heven_ad_ws
+
+source /opt/ros/humble/setup.bash
+source install/setup.bash
+
+ros2 run carla_manual_control carla_manual_control \
+  --ros-args \
+  -p role_name:=ego_vehicle
+```
+
+실행 후 Pygame 창이 열리면 창을 클릭하고 `B`를 눌러 수동 제어를 활성화 하고 아래 조작키에 맞춰 조작한다.
+```text
+B       수동 제어 활성화
+W       가속
+S       브레이크
+A / D   조향
+Space   주차 브레이크
+Q       전진/후진 전환
+P       AutoPilot 모드 전환
+Esc     종료
+```
+
+## 8. 토픽 계약
 
 요청한 센서 토픽은 다음과 같다.
 
@@ -217,7 +244,7 @@ ros2 topic hz /carla/ego_vehicle/gnss
 재발행하면 Bridge와 publisher 충돌이 발생하기 때문이다. 인지 및 기록 노드는
 `/heven/sensors_ready`가 `True`가 된 이후의 원본 메시지만 처리해야 한다.
 
-## 8. 현재 센서 설정
+## 9. 현재 센서 설정
 
 모든 센서는 초기 검증을 위해 world tick마다 측정한다(`sensor_tick=0.0`, world 20 Hz).
 
@@ -238,7 +265,7 @@ ros2 topic hz /carla/ego_vehicle/gnss
 
 NTRIP, RTCM, RTK FIX/FLOAT 상태는 구현하지 않는다.
 
-## 9. 좌표계
+## 10. 좌표계
 
 `carla_spawn_objects` JSON은 ROS 오른손 좌표를 사용한다.
 
@@ -259,7 +286,7 @@ pitch_ros = -pitch_carla
 yaw_ros   = -yaw_carla
 ```
 
-## 10. 중요 제한사항
+## 11. 중요 제한사항
 
 - Bridge 기본 코드는 `town`이 현재 맵과 다르면 패키지 서버에 맵 재로드를 요청한다.
   `HEVEN_CARLA_PACKAGE`에 K-City 맵이 포함돼 있어야 하며, `bridge.yaml`의 `town`
@@ -273,7 +300,7 @@ yaw_ros   = -yaw_carla
 - 실제 멀티레이트 센서 설정으로 변경할 때는 여섯 센서를 strict same-stamp로 묶는
   현재 `sensor_gate`를 timestamp buffer 방식으로 교체해야 한다.
 
-## 11. Humble launch 호환성 확인
+## 12. Humble launch 호환성 확인
 
 이 패키지의 launch 파일은 ROS 2 Humble 기준으로 다음 API만 사용한다.
 
