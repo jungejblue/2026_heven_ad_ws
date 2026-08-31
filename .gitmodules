@@ -1,0 +1,3 @@
+[submodule "src/carla-ros-bridge"]
+	path = src/carla-ros-bridge
+	url = https://github.com/ttgamage/carla-ros-bridge.git
