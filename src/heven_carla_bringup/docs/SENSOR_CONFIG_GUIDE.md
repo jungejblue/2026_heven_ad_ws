@@ -89,12 +89,12 @@ HFOV = 2 * atan(W / (2 * fx))
 
 ## 4. LiDAR 수정
 
-현재 설정은 OS1-64, 1024 columns, 20 Hz를 근사한다.
+현재 설정은 보유한 OS1-32를 1024 columns, 20 Hz로 운용하는 조건을 근사한다.
 
 ```json
-"channels": 64,
+"channels": 32,
 "range": 120.0,
-"points_per_second": 1310720,
+"points_per_second": 655360,
 "rotation_frequency": 20.0,
 "upper_fov": 22.5,
 "lower_fov": -22.5,
@@ -106,12 +106,23 @@ HFOV = 2 * atan(W / (2 * fx))
 
 ```text
 points_per_second = channels * columns_per_rotation * rotation_frequency
-64 * 1024 * 20 = 1,310,720 points/s
+32 * 1024 * 20 = 655,360 points/s
 ```
 
-실제 장비가 OS1-32/64/128 중 무엇인지와 512/1024/2048 mode, 10/20 Hz 중 어떤
-운용 모드를 쓰는지 확정한 뒤 세 값을 함께 변경한다. `rotation_frequency`만 바꾸고
-`points_per_second`를 그대로 두면 회전당 수평 포인트 수가 달라진다.
+현재 32채널에서 수평 mode를 512/1024/2048 columns 중 다른 값으로 바꾸거나
+회전수를 10/20 Hz 중 다른 값으로 바꿀 때는 세 값의 관계를 다시 계산한다.
+`rotation_frequency`만 바꾸고 `points_per_second`를 그대로 두면 회전당 수평 포인트
+수가 달라진다.
+
+채널 수만 64에서 32로 바로잡는 현재 변경에서는 다음 파일만 직접 수정한다.
+
+1. `config/heven_sensors.json`: `channels`, `points_per_second`
+2. `README.md`, `docs/PROJECT_STATUS.md`, 이 문서: 기준 사양과 계산식
+3. `test/test_config_files.py`: 기준 사양 회귀 테스트
+
+센서 `id`, `type`, `rotation_frequency`, `sensor_tick`과 ROS 토픽은 바뀌지 않으므로
+`topic_contract.py`, `sensor_gate.py`, `readiness_monitor.py`, RViz 설정 및
+`bridge.yaml`의 20 Hz world 설정은 수정하지 않는다.
 
 CARLA의 채널은 수직 FOV 안에 균일 분포되므로 실제 Ouster beam calibration과
 동일하다고 간주하지 않는다.
@@ -220,9 +231,18 @@ source install/setup.bash
 ros2 run heven_carla_bringup heven_validate_config
 ```
 
-CARLA Editor에서 K-City를 Play한 다음 실행한다.
+첫 번째 터미널에서 대회용 CARLA 패키지 서버를 실행한다.
 
 ```bash
+cd ~/HEVEN_CARLA_PACKAGE
+./CarlaUE4.sh
+```
+
+서버가 `localhost:2000`에서 준비되면 새 ROS 터미널에서 실행한다.
+
+```bash
+source /opt/ros/humble/setup.bash
+source ~/2026_heven_ad_ws/install/setup.bash
 ros2 launch heven_carla_bringup heven_bringup.launch.py
 ```
 

@@ -16,6 +16,5 @@ carla_ros_bridge:
       - "ego_vehicle"
 
     # Must exactly match client.get_world().get_map().name.
-    # Exact equality prevents the bridge from reloading the current Editor world.
+    # Exact equality prevents the bridge from reloading the packaged server world.
     town: "heven_kcity/Maps/kcity/kcity"
-

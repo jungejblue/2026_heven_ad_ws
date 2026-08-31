@@ -16,7 +16,7 @@ CARLA 0.9.15, Ubuntu 22.04, ROS 2 Humble에서 `vehicle.heven.ev`와 HEVEN
 ```text
 2026_heven_ad_ws/
 ├── src/
-│   ├── carla-ros-bridge/          # 비어 있음: ttgamage 포크 clone 위치
+│   ├── carla-ros-bridge/          # ttgamage 포크 Git submodule
 │   └── heven_carla_bringup/
 │       ├── config/
 │       │   ├── bridge.yaml
@@ -36,53 +36,54 @@ CARLA 0.9.15, Ubuntu 22.04, ROS 2 Humble에서 `vehicle.heven.ev`와 HEVEN
 `heven_sensor_test.py`와 이 ROS bring-up은 동시에 실행하지 않는다. 이 패키지에서는
 ROS Bridge가 유일한 `world.tick()` 관리자이다.
 
-## 2. ROS Bridge clone
+## 2. ROS Bridge submodule
 
-압축을 홈 디렉터리에 푼 뒤 비어 있는 clone 위치로 이동한다.
-
-```bash
-cd ~/2026_heven_ad_ws/src/carla-ros-bridge
-
-git clone --recurse-submodules \
-  https://github.com/ttgamage/carla-ros-bridge.git .
-```
-
-성공 후 사용한 commit을 기록한다.
+ROS Bridge는 외부 저장소를 복사해 커밋하는 대신 Git submodule로 관리한다. 이
+배포 압축의 `src/carla-ros-bridge/`는 submodule을 받을 자리이므로, 상위 workspace
+Git 저장소에서 다음 명령을 한 번 실행한다.
 
 ```bash
-git rev-parse HEAD | tee ../../carla_ros_bridge.commit
-git submodule status --recursive | tee ../../carla_ros_bridge.submodules
+cd ~/2026_heven_ad_ws
+
+git submodule add \
+  https://github.com/ttgamage/carla-ros-bridge.git \
+  src/carla-ros-bridge
+
+git submodule update --init --recursive
 ```
 
-팀에서 재현할 때는 위 commit으로 checkout한다. 포크의 moving `master`를 자동으로
-따라가지 않는다.
+이미 submodule 등록이 끝난 workspace에서는 다음 명령만 사용한다.
+
+```bash
+cd ~/2026_heven_ad_ws
+git submodule update --init --recursive
+git submodule status --recursive
+```
+
+상위 저장소의 gitlink가 사용한 ROS Bridge commit을 고정한다. 팀원이 처음 받는
+경우에는 `git clone --recurse-submodules <workspace_url>`을 사용하며, 일반 clone을
+이미 했다면 `git submodule update --init --recursive`를 실행한다. 포크의 moving
+`master`를 자동으로 따라가지 않는다.
 
 ## 3. ROS용 CARLA Python API 확인
 
-CARLA Editor를 실행하는 `jj_carla` conda 환경과 ROS Bridge 환경을 분리한다.
-ROS 터미널에서는 system Python 3.10이 CARLA 0.9.15 API를 불러올 수 있어야 한다.
+ROS Bridge는 ROS 2 Humble의 system Python 3.10으로 실행된다. 따라서 system
+Python이 CARLA 0.9.15 API를 불러올 수 있어야 한다.
 
 ```bash
-conda deactivate 2>/dev/null || true
-unset PYTHONNOUSERSITE
-
 source /opt/ros/humble/setup.bash
 
 /usr/bin/python3 - <<'PY'
 import carla
 print("CARLA module:", carla.__file__)
-
-client = carla.Client("localhost", 2000)
-client.set_timeout(10.0)
-print("Client:", client.get_client_version())
-print("Server:", client.get_server_version())
-print("Map:", client.get_world().get_map().name)
+print("Client API:", carla.Client("localhost", 2000).get_client_version())
 PY
 ```
 
-Client와 Server는 모두 `0.9.15`여야 한다. system Python에서 `import carla`가
-실패한다면 `~/CARLA_0.9.15/PythonAPI/carla/dist/`의 Python 3.10용 wheel/egg를
-ROS 터미널에 노출해야 한다. 임의 버전의 PyPI 패키지를 설치하지 않는다.
+Client API는 `0.9.15`여야 한다. system Python에서 `import carla`가 실패한다면
+`HEVEN_CARLA_PACKAGE`와 함께 배포한 Python 3.10용 CARLA wheel/egg를 system
+Python에 설치하거나 ROS 터미널의 `PYTHONPATH`에 노출한다. 임의 버전의 PyPI
+패키지를 설치하지 않는다.
 
 ## 4. 의존성 설치와 빌드
 
@@ -104,34 +105,50 @@ source install/setup.bash
 ros2 run heven_carla_bringup heven_validate_config
 ```
 
-## 5. CARLA Editor 실행
+## 5. HEVEN 패키지 CARLA 서버 실행
 
-별도 터미널에서 기존 검증 명령을 사용한다.
+Unreal Engine Editor나 소스 빌드를 실행하지 않는다. 첫 번째 터미널에서 대회용으로
+패키징한 CARLA 서버를 직접 실행한다.
 
 ```bash
-source ~/miniconda3/etc/profile.d/conda.sh
-conda activate jj_carla
-
-export UE4_ROOT=~/UnrealEngine_4.26
-export PYTHONNOUSERSITE=1
-
-unset PYTHONPATH
-unset CFLAGS CXXFLAGS CPPFLAGS LDFLAGS
-
-cd ~/CARLA_0.9.15
-make launch
+cd ~/HEVEN_CARLA_PACKAGE
+./CarlaUE4.sh
 ```
 
-Editor에서 `heven_kcity/Maps/kcity/kcity`를 열고 Play를 누른다.
+이 실행 파일은 기본적으로 `localhost:2000`에서 CARLA 서버를 열어야 하며, 패키지
+안에 `heven_kcity/Maps/kcity/kcity` 맵과 `vehicle.heven.ev` Blueprint가 포함돼
+있어야 한다. `bridge.yaml`의 `passive: false` 설정 때문에 시작 맵이 다르더라도
+Bridge가 지정된 K-City 맵을 요청할 수 있지만, 해당 맵이 패키징되지 않았다면 로드할
+수 없다.
+
+서버를 켠 뒤 두 번째 터미널에서 통신 상태를 확인한다.
+
+```bash
+source /opt/ros/humble/setup.bash
+
+/usr/bin/python3 - <<'PY'
+import carla
+
+client = carla.Client("localhost", 2000)
+client.set_timeout(10.0)
+print("Client:", client.get_client_version())
+print("Server:", client.get_server_version())
+print("Map:", client.get_world().get_map().name)
+print("HEVEN vehicle:", bool(
+    client.get_world().get_blueprint_library().filter("vehicle.heven.ev")
+))
+PY
+```
+
+Client는 `0.9.15`, 사용자 패키지 Server는 검증된 빌드의 경우
+`0.9.15-dirty`로 표시될 수 있다. 실제 Bridge 연결과 동기 실행이 확인된 동일
+빌드라면 이 접미사는 사용자 변경사항이 포함된 빌드라는 뜻이며 단독 오류는 아니다.
 
 ## 6. Bring-up 실행
 
 새 ROS 터미널에서 실행한다.
 
 ```bash
-conda deactivate 2>/dev/null || true
-unset PYTHONNOUSERSITE
-
 source /opt/ros/humble/setup.bash
 source ~/2026_heven_ad_ws/install/setup.bash
 
@@ -205,13 +222,15 @@ ros2 topic hz /carla/ego_vehicle/gnss
 | `left_cam` | 좌측 차선 인식 | 1280×720, HFOV 70.42°, 좌측 yaw |
 | `right_cam` | 우측 차선 인식 | 1280×720, HFOV 70.42°, 우측 yaw |
 | `front_cam` | 신호등·객체 인식 | 1280×720, HFOV 70.42°, 전방 |
-| `lidar` | Ouster OS1 근사 | 64채널, 120 m, 20 Hz, 45° vertical FOV |
+| `lidar` | Ouster OS1-32 근사 | 32채널, 120 m, 20 Hz, 45° vertical FOV |
 | `imu` | 차체 중심 하단 | 초기 noise/bias 0 |
 | `gnss` | LiDAR 상부 안테나 위치 | 초기 noise/bias 0 |
 
-`lidar`는 OS1-64, 1024×20 mode에 해당하는 초기 근사값이다. 실제 보유 장비가
-OS1-32/64/128 중 무엇인지와 운영 mode가 확정되면 `heven_sensors.json`의
-`channels`, `points_per_second`, `rotation_frequency`를 수정해야 한다.
+`lidar`는 보유한 OS1-32를 1024 columns × 20 Hz mode로 운용하는 초기 설정이다.
+따라서 `channels=32`, `rotation_frequency=20.0`,
+`points_per_second=655360`을 함께 사용한다. 수평 mode 또는 회전수를 변경할 때는
+`points_per_second = channels × columns_per_rotation × rotation_frequency`로 다시
+계산해야 한다.
 
 NTRIP, RTCM, RTK FIX/FLOAT 상태는 구현하지 않는다.
 
@@ -238,8 +257,9 @@ yaw_ros   = -yaw_carla
 
 ## 10. 중요 제한사항
 
-- Bridge 기본 코드는 `town`이 현재 맵과 다르면 맵을 다시 로드한다. `bridge.yaml`의
-  `town` 값은 실제 `world.get_map().name`과 정확히 일치해야 한다.
+- Bridge 기본 코드는 `town`이 현재 맵과 다르면 패키지 서버에 맵 재로드를 요청한다.
+  `HEVEN_CARLA_PACKAGE`에 K-City 맵이 포함돼 있어야 하며, `bridge.yaml`의 `town`
+  값은 실제 `world.get_map().name`과 정확히 일치해야 한다.
 - 세 카메라의 raw 1920×1080@30 Hz 동시 발행은 DDS/RViz 부하가 크므로 초기에는
   1280×720@20 Hz를 사용한다.
 - CARLA ray-cast LiDAR는 실제 Ouster의 beam calibration, multi-return 및 실제 회전

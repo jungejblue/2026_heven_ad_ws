@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="3">
   <name>heven_carla_bringup</name>
-  <version>0.1.2</version>
+  <version>0.1.3</version>
   <description>CARLA 0.9.15 ROS 2 Humble sensor bring-up for vehicle.heven.ev.</description>
 
   <maintainer email="heven@example.com">HEVEN</maintainer>

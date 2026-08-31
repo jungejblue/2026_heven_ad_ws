@@ -73,9 +73,9 @@
             "pitch": 0.0,
             "yaw": 0.0
           },
-          "channels": 64,
+          "channels": 32,
           "range": 120.0,
-          "points_per_second": 1310720,
+          "points_per_second": 655360,
           "rotation_frequency": 20.0,
           "upper_fov": 22.5,
           "lower_fov": -22.5,
@@ -140,4 +140,3 @@
     }
   ]
 }
-
