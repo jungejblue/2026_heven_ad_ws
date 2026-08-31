@@ -1,5 +1,10 @@
 # 2026 HEVEN AD ROS 2 Workspace
 
+![Ubuntu](https://img.shields.io/badge/Ubuntu-22.04-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)
+![CARLA](https://img.shields.io/badge/CARLA-0.9.15-00A6D6?style=for-the-badge)
+![Python](https://img.shields.io/badge/Python-3.10-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![ROS2](https://img.shields.io/badge/ROS_2-Humble-22314E?style=for-the-badge&logo=ros&logoColor=white)
+
 CARLA 0.9.15, Ubuntu 22.04, ROS 2 Humble에서 `vehicle.heven.ev`와 HEVEN
 센서 구성을 ROS 토픽으로 제공하기 위한 colcon workspace이다.
 
