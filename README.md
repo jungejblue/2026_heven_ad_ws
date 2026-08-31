@@ -1,0 +1,287 @@
+# 2026 HEVEN AD ROS 2 Workspace
+
+CARLA 0.9.15, Ubuntu 22.04, ROS 2 Humble에서 `vehicle.heven.ev`와 HEVEN
+센서 구성을 ROS 토픽으로 제공하기 위한 colcon workspace이다.
+
+현재 디렉터리명은 `2026_heven_ad_ws`를 사용한다.
+
+현재 구현은 차량 스폰, 시뮬레이션 시간 2초 안정화, 센서 부착, 초기 동기 세트
+확인 및 ROS 토픽 발행까지 사용자 CARLA 환경에서 정상 동작이 확인됐다.
+
+- [현재 구현 상태](src/heven_carla_bringup/docs/PROJECT_STATUS.md)
+- [센서 Config 수정 가이드](src/heven_carla_bringup/docs/SENSOR_CONFIG_GUIDE.md)
+
+## 1. 구성
+
+```text
+2026_heven_ad_ws/
+├── src/
+│   ├── carla-ros-bridge/          # 비어 있음: ttgamage 포크 clone 위치
+│   └── heven_carla_bringup/
+│       ├── config/
+│       │   ├── bridge.yaml
+│       │   ├── vehicle_only.json
+│       │   ├── heven_sensors.json
+│       │   └── heven_sensors.rviz
+│       ├── launch/
+│       │   └── heven_bringup.launch.py
+│       └── heven_carla_bringup/
+│           ├── warmup_guard.py
+│           ├── sensor_gate.py
+│           ├── readiness_monitor.py
+│           └── config_validator.py
+└── README.md
+```
+
+`heven_sensor_test.py`와 이 ROS bring-up은 동시에 실행하지 않는다. 이 패키지에서는
+ROS Bridge가 유일한 `world.tick()` 관리자이다.
+
+## 2. ROS Bridge clone
+
+압축을 홈 디렉터리에 푼 뒤 비어 있는 clone 위치로 이동한다.
+
+```bash
+cd ~/2026_heven_ad_ws/src/carla-ros-bridge
+
+git clone --recurse-submodules \
+  https://github.com/ttgamage/carla-ros-bridge.git .
+```
+
+성공 후 사용한 commit을 기록한다.
+
+```bash
+git rev-parse HEAD | tee ../../carla_ros_bridge.commit
+git submodule status --recursive | tee ../../carla_ros_bridge.submodules
+```
+
+팀에서 재현할 때는 위 commit으로 checkout한다. 포크의 moving `master`를 자동으로
+따라가지 않는다.
+
+## 3. ROS용 CARLA Python API 확인
+
+CARLA Editor를 실행하는 `jj_carla` conda 환경과 ROS Bridge 환경을 분리한다.
+ROS 터미널에서는 system Python 3.10이 CARLA 0.9.15 API를 불러올 수 있어야 한다.
+
+```bash
+conda deactivate 2>/dev/null || true
+unset PYTHONNOUSERSITE
+
+source /opt/ros/humble/setup.bash
+
+/usr/bin/python3 - <<'PY'
+import carla
+print("CARLA module:", carla.__file__)
+
+client = carla.Client("localhost", 2000)
+client.set_timeout(10.0)
+print("Client:", client.get_client_version())
+print("Server:", client.get_server_version())
+print("Map:", client.get_world().get_map().name)
+PY
+```
+
+Client와 Server는 모두 `0.9.15`여야 한다. system Python에서 `import carla`가
+실패한다면 `~/CARLA_0.9.15/PythonAPI/carla/dist/`의 Python 3.10용 wheel/egg를
+ROS 터미널에 노출해야 한다. 임의 버전의 PyPI 패키지를 설치하지 않는다.
+
+## 4. 의존성 설치와 빌드
+
+```bash
+cd ~/2026_heven_ad_ws
+
+source /opt/ros/humble/setup.bash
+
+rosdep update
+rosdep install --from-paths src --ignore-src -r -y
+
+colcon build --symlink-install
+source install/setup.bash
+```
+
+설정 파일을 먼저 검사한다.
+
+```bash
+ros2 run heven_carla_bringup heven_validate_config
+```
+
+## 5. CARLA Editor 실행
+
+별도 터미널에서 기존 검증 명령을 사용한다.
+
+```bash
+source ~/miniconda3/etc/profile.d/conda.sh
+conda activate jj_carla
+
+export UE4_ROOT=~/UnrealEngine_4.26
+export PYTHONNOUSERSITE=1
+
+unset PYTHONPATH
+unset CFLAGS CXXFLAGS CPPFLAGS LDFLAGS
+
+cd ~/CARLA_0.9.15
+make launch
+```
+
+Editor에서 `heven_kcity/Maps/kcity/kcity`를 열고 Play를 누른다.
+
+## 6. Bring-up 실행
+
+새 ROS 터미널에서 실행한다.
+
+```bash
+conda deactivate 2>/dev/null || true
+unset PYTHONNOUSERSITE
+
+source /opt/ros/humble/setup.bash
+source ~/2026_heven_ad_ws/install/setup.bash
+
+ros2 launch heven_carla_bringup heven_bringup.launch.py
+```
+
+RViz 없이 실행하려면:
+
+```bash
+ros2 launch heven_carla_bringup heven_bringup.launch.py launch_rviz:=false
+```
+
+시작 순서는 다음과 같다.
+
+1. ROS Bridge가 K-City 현재 맵에 연결되고 20 Hz 동기 모드를 적용한다.
+2. `vehicle_only.json`으로 `vehicle.heven.ev`를 스폰한다.
+3. `warmup_guard`가 브레이크를 유지하며 `/clock` 기준 2초를 기다린다.
+4. `spawn_sensors_only=True`로 센서를 차량에 부착한다.
+5. `sensor_gate`가 센서 6개의 완전한 동기 세트 5개를 확인한다.
+6. `/heven/sensors_ready=True`를 발행한다.
+
+## 7. 토픽 계약
+
+요청한 센서 토픽은 다음과 같다.
+
+```text
+/carla/ego_vehicle/left_cam/image
+/carla/ego_vehicle/left_cam/camera_info
+
+/carla/ego_vehicle/right_cam/image
+/carla/ego_vehicle/right_cam/camera_info
+
+/carla/ego_vehicle/front_cam/image
+/carla/ego_vehicle/front_cam/camera_info
+
+/carla/ego_vehicle/lidar
+/carla/ego_vehicle/imu
+/carla/ego_vehicle/gnss
+/carla/ego_vehicle/odometry
+
+/clock
+/tf
+/tf_static
+/heven/sensors_ready
+```
+
+확인 명령:
+
+```bash
+ros2 topic list | sort
+ros2 topic echo /heven/sensors_ready --once
+
+ros2 topic hz /carla/ego_vehicle/left_cam/image
+ros2 topic hz /carla/ego_vehicle/right_cam/image
+ros2 topic hz /carla/ego_vehicle/front_cam/image
+ros2 topic hz /carla/ego_vehicle/lidar
+ros2 topic hz /carla/ego_vehicle/imu
+ros2 topic hz /carla/ego_vehicle/gnss
+```
+
+`sensor_gate`는 `/carla/...` 원본 토픽을 삭제하거나 재발행하지 않는다. 같은 이름으로
+재발행하면 Bridge와 publisher 충돌이 발생하기 때문이다. 인지 및 기록 노드는
+`/heven/sensors_ready`가 `True`가 된 이후의 원본 메시지만 처리해야 한다.
+
+## 8. 현재 센서 설정
+
+모든 센서는 초기 검증을 위해 world tick마다 측정한다(`sensor_tick=0.0`, world 20 Hz).
+
+| 센서 | 위치 기준 | 초기 설정 |
+|---|---|---|
+| `left_cam` | 좌측 차선 인식 | 1280×720, HFOV 70.42°, 좌측 yaw |
+| `right_cam` | 우측 차선 인식 | 1280×720, HFOV 70.42°, 우측 yaw |
+| `front_cam` | 신호등·객체 인식 | 1280×720, HFOV 70.42°, 전방 |
+| `lidar` | Ouster OS1 근사 | 64채널, 120 m, 20 Hz, 45° vertical FOV |
+| `imu` | 차체 중심 하단 | 초기 noise/bias 0 |
+| `gnss` | LiDAR 상부 안테나 위치 | 초기 noise/bias 0 |
+
+`lidar`는 OS1-64, 1024×20 mode에 해당하는 초기 근사값이다. 실제 보유 장비가
+OS1-32/64/128 중 무엇인지와 운영 mode가 확정되면 `heven_sensors.json`의
+`channels`, `points_per_second`, `rotation_frequency`를 수정해야 한다.
+
+NTRIP, RTCM, RTK FIX/FLOAT 상태는 구현하지 않는다.
+
+## 9. 좌표계
+
+`carla_spawn_objects` JSON은 ROS 오른손 좌표를 사용한다.
+
+```text
+x: 전방
+y: 좌측
+z: 위
+```
+
+기존 CARLA Python YAML 좌표와의 관계는 다음과 같다.
+
+```text
+x_ros     =  x_carla
+y_ros     = -y_carla
+z_ros     =  z_carla
+roll_ros  =  roll_carla
+pitch_ros = -pitch_carla
+yaw_ros   = -yaw_carla
+```
+
+## 10. 중요 제한사항
+
+- Bridge 기본 코드는 `town`이 현재 맵과 다르면 맵을 다시 로드한다. `bridge.yaml`의
+  `town` 값은 실제 `world.get_map().name`과 정확히 일치해야 한다.
+- 세 카메라의 raw 1920×1080@30 Hz 동시 발행은 DDS/RViz 부하가 크므로 초기에는
+  1280×720@20 Hz를 사용한다.
+- CARLA ray-cast LiDAR는 실제 Ouster의 beam calibration, multi-return 및 실제 회전
+  스캔의 motion distortion을 완전히 재현하지 않는다.
+- CARLA GNSS는 NTRIP 보정 수신기를 재현하지 않는다. 현재 패키지는 raw
+  `sensor_msgs/NavSatFix` 기능 검증까지만 담당한다.
+- 실제 멀티레이트 센서 설정으로 변경할 때는 여섯 센서를 strict same-stamp로 묶는
+  현재 `sensor_gate`를 timestamp buffer 방식으로 교체해야 한다.
+
+## 11. Humble launch 호환성 확인
+
+이 패키지의 launch 파일은 ROS 2 Humble 기준으로 다음 API만 사용한다.
+
+```python
+from launch.actions import EmitEvent, LogInfo
+from launch.events import Shutdown
+```
+
+수정 전 패키지에서 다음 오류가 발생한다면 `src`만 수정하고 재빌드하지 않았거나,
+이전 `install` 공간을 source한 상태일 수 있다.
+
+```text
+ImportError: cannot import name 'LogError' from 'launch.actions'
+```
+
+현재 터미널에서 source된 패키지 경로는 다음 명령으로 확인한다.
+
+```bash
+ros2 pkg prefix heven_carla_bringup
+```
+
+`ttgamage` 포크의 `carla_spawn_objects/setup.py`는 launch 파일을 일반적인
+`share/carla_spawn_objects/launch/`가 아니라 `share/carla_spawn_objects/`에
+설치한다. 이 workspace는 해당 설치 경로에 의존하지 않고 다음 실행 파일을 ROS 2
+`Node` action으로 직접 시작한다.
+
+```text
+carla_spawn_objects/carla_spawn_objects
+```
+
+따라서 다음 경로를 직접 조합하거나 include하지 않는다.
+
+```text
+share/carla_spawn_objects/launch/carla_spawn_objects.launch.py
+```

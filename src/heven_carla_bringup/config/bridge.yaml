@@ -1,0 +1,21 @@
+carla_ros_bridge:
+  ros__parameters:
+    use_sim_time: true
+
+    host: "localhost"
+    port: 2000
+    timeout: 10
+
+    passive: false
+    synchronous_mode: true
+    synchronous_mode_wait_for_vehicle_control_command: false
+    fixed_delta_seconds: 0.05
+
+    register_all_sensors: true
+    ego_vehicle_role_name:
+      - "ego_vehicle"
+
+    # Must exactly match client.get_world().get_map().name.
+    # Exact equality prevents the bridge from reloading the current Editor world.
+    town: "heven_kcity/Maps/kcity/kcity"
+

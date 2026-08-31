@@ -1,0 +1,17 @@
+{
+  "objects": [
+    {
+      "type": "vehicle.heven.ev",
+      "id": "ego_vehicle",
+      "sensors": [],
+      "spawn_point": {
+        "x": -65.324585,
+        "y": -409.205139,
+        "z": 4.0,
+        "roll": 0.0,
+        "pitch": 0.0,
+        "yaw": -122.222771
+      }
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>heven_carla_bringup</name>
+  <version>0.1.2</version>
+  <description>CARLA 0.9.15 ROS 2 Humble sensor bring-up for vehicle.heven.ev.</description>
+
+  <maintainer email="heven@example.com">HEVEN</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_python</buildtool_depend>
+
+  <exec_depend>ament_index_python</exec_depend>
+  <exec_depend>carla_msgs</exec_depend>
+  <exec_depend>carla_ros_bridge</exec_depend>
+  <exec_depend>carla_spawn_objects</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>rosgraph_msgs</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+
+  <test_depend>ament_pytest</test_depend>
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
