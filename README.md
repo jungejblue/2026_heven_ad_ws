@@ -1,24 +1,21 @@
 # 2026 HEVEN AD ROS 2 Workspace
 
-![Ubuntu](https://img.shields.io/badge/Ubuntu-22.04-E95420?style=for-the-badge&logo=ubuntu&logoColor=white)
-![CARLA](https://img.shields.io/badge/CARLA-0.9.15-00A6D6?style=for-the-badge)
-![Python](https://img.shields.io/badge/Python-3.10-3776AB?style=for-the-badge&logo=python&logoColor=white)
-![ROS2](https://img.shields.io/badge/ROS_2-Humble-22314E?style=for-the-badge&logo=ros&logoColor=white)
-
 CARLA 0.9.15, Ubuntu 22.04, ROS 2 Humble에서 `vehicle.heven.ev`와 HEVEN
 센서 구성을 ROS 토픽으로 제공하기 위한 colcon workspace이다.
 
-현재 디렉터리명은 `2026_heven_ad_ws`를 사용한다.
+현재 디렉터리명은 `2026_heven_jj_ws`를 사용한다.
+현재 배포 기준 버전은 `heven_carla_bringup 0.1.3`이다.
 
 현재 구현은 차량 스폰, 시뮬레이션 시간 2초 안정화, 센서 부착, 초기 동기 세트
 확인 및 ROS 토픽 발행까지 사용자 CARLA 환경에서 정상 동작이 확인됐다.
 
+- [현재 구현 상태](src/heven_carla_bringup/docs/PROJECT_STATUS.md)
 - [센서 Config 수정 가이드](src/heven_carla_bringup/docs/SENSOR_CONFIG_GUIDE.md)
 
 ## 1. 구성
 
 ```text
-2026_heven_ad_ws/
+2026_heven_jj_ws/
 ├── src/
 │   ├── carla-ros-bridge/          # ttgamage 포크 Git submodule
 │   └── heven_carla_bringup/
@@ -47,7 +44,7 @@ ROS Bridge는 외부 저장소를 복사해 커밋하는 대신 Git submodule로
 Git 저장소에서 다음 명령을 한 번 실행한다.
 
 ```bash
-cd ~/2026_heven_ad_ws
+cd ~/2026_heven_jj_ws
 
 git submodule add \
   https://github.com/ttgamage/carla-ros-bridge.git \
@@ -59,7 +56,7 @@ git submodule update --init --recursive
 이미 submodule 등록이 끝난 workspace에서는 다음 명령만 사용한다.
 
 ```bash
-cd ~/2026_heven_ad_ws
+cd ~/2026_heven_jj_ws
 git submodule update --init --recursive
 git submodule status --recursive
 ```
@@ -92,7 +89,7 @@ Python에 설치하거나 ROS 터미널의 `PYTHONPATH`에 노출한다. 임의 
 ## 4. 의존성 설치와 빌드
 
 ```bash
-cd ~/2026_heven_ad_ws
+cd ~/2026_heven_jj_ws
 
 source /opt/ros/humble/setup.bash
 
@@ -154,7 +151,7 @@ Client는 `0.9.15`, 사용자 패키지 Server는 검증된 빌드의 경우
 
 ```bash
 source /opt/ros/humble/setup.bash
-source ~/2026_heven_ad_ws/install/setup.bash
+source ~/2026_heven_jj_ws/install/setup.bash
 
 ros2 launch heven_carla_bringup heven_bringup.launch.py
 ```
@@ -165,21 +162,27 @@ RViz 없이 실행하려면:
 ros2 launch heven_carla_bringup heven_bringup.launch.py launch_rviz:=false
 ```
 
-시작 순서는 다음과 같다.
+### 기존 ego_vehicle 수동 주행
 
-1. ROS Bridge가 K-City 현재 맵에 연결되고 20 Hz 동기 모드를 적용한다.
-2. `vehicle_only.json`으로 `vehicle.heven.ev`를 스폰한다.
-3. `warmup_guard`가 브레이크를 유지하며 `/clock` 기준 2초를 기다린다.
-4. `spawn_sensors_only=True`로 센서를 차량에 부착한다.
-5. `sensor_gate`가 센서 6개의 완전한 동기 세트 5개를 확인한다.
-6. `/heven/sensors_ready=True`를 발행한다.
+Bring-up이 완료되고 `/heven/sensors_ready=True`가 확인된 뒤, ROS Bridge에 포함된
+`carla_manual_control`로 이미 스폰된 `ego_vehicle`을 수동 조작할 수 있다. 이 노드는
+새 차량을 만들거나 `world.tick()`을 호출하지 않는다.
 
-## 7. 수동 조작
-
-새 ROS 터미널에서 실행한다.
+수동 제어 GUI에 필요한 system Python 패키지가 없다면 한 번 설치한다.
 
 ```bash
-cd ~/2026_heven_ad_ws
+sudo apt update
+sudo apt install -y \
+  python3-pygame \
+  python3-numpy \
+  python3-transforms3d
+```
+
+현재 HEVEN 센서 구성에는 `rgb_view`가 없으므로, manual-control이 기본 구독하는
+`rgb_view/image`를 기존 `front_cam/image`로 remap한다.
+
+```bash
+cd ~/2026_heven_jj_ws
 
 source /opt/ros/humble/setup.bash
 source install/setup.bash
@@ -190,19 +193,24 @@ ros2 run carla_manual_control carla_manual_control \
   -r /carla/ego_vehicle/rgb_view/image:=/carla/ego_vehicle/front_cam/image
 ```
 
-실행 후 Pygame 창이 열리면 창을 클릭하고 `B`를 눌러 수동 제어를 활성화 하고 아래 조작키에 맞춰 조작한다.
-```text
-B       수동 제어 활성화
-W       가속
-S       브레이크
-A / D   조향
-Space   주차 브레이크
-Q       전진/후진 전환
-P       AutoPilot 모드 전환
-Esc     종료
-```
+Pygame 창을 선택한 뒤 `B`를 눌러 manual override를 활성화한다. `W/S`는
+가속·브레이크, `A/D`는 조향, `Space`는 주차 브레이크, `Q`는 전진·후진 전환이다.
 
-## 8. 토픽 계약
+이 방식은 네 번째 화면용 카메라를 추가하지 않고 기존 전방 인지 카메라를 표시용으로
+재사용한다. 센서 JSON, readiness 대상, ROS 토픽 계약과 Bridge의 tick 소유권은
+변경되지 않는다. PythonAPI의 `manual_control.py`는 별도 차량과 센서를 스폰할 수
+있으므로 이 bring-up과 동시에 실행하지 않는다.
+
+시작 순서는 다음과 같다.
+
+1. ROS Bridge가 K-City 현재 맵에 연결되고 20 Hz 동기 모드를 적용한다.
+2. `vehicle_only.json`으로 `vehicle.heven.ev`를 스폰한다.
+3. `warmup_guard`가 브레이크를 유지하며 `/clock` 기준 2초를 기다린다.
+4. `spawn_sensors_only=True`로 센서를 차량에 부착한다.
+5. `sensor_gate`가 센서 6개의 완전한 동기 세트 5개를 확인한다.
+6. `/heven/sensors_ready=True`를 발행한다.
+
+## 7. 토픽 계약
 
 요청한 센서 토픽은 다음과 같다.
 
@@ -245,7 +253,7 @@ ros2 topic hz /carla/ego_vehicle/gnss
 재발행하면 Bridge와 publisher 충돌이 발생하기 때문이다. 인지 및 기록 노드는
 `/heven/sensors_ready`가 `True`가 된 이후의 원본 메시지만 처리해야 한다.
 
-## 9. 현재 센서 설정
+## 8. 현재 센서 설정
 
 모든 센서는 초기 검증을 위해 world tick마다 측정한다(`sensor_tick=0.0`, world 20 Hz).
 
@@ -266,7 +274,7 @@ ros2 topic hz /carla/ego_vehicle/gnss
 
 NTRIP, RTCM, RTK FIX/FLOAT 상태는 구현하지 않는다.
 
-## 10. 좌표계
+## 9. 좌표계
 
 `carla_spawn_objects` JSON은 ROS 오른손 좌표를 사용한다.
 
@@ -287,7 +295,7 @@ pitch_ros = -pitch_carla
 yaw_ros   = -yaw_carla
 ```
 
-## 11. 중요 제한사항
+## 10. 중요 제한사항
 
 - Bridge 기본 코드는 `town`이 현재 맵과 다르면 패키지 서버에 맵 재로드를 요청한다.
   `HEVEN_CARLA_PACKAGE`에 K-City 맵이 포함돼 있어야 하며, `bridge.yaml`의 `town`
@@ -301,7 +309,7 @@ yaw_ros   = -yaw_carla
 - 실제 멀티레이트 센서 설정으로 변경할 때는 여섯 센서를 strict same-stamp로 묶는
   현재 `sensor_gate`를 timestamp buffer 방식으로 교체해야 한다.
 
-## 12. Humble launch 호환성 확인
+## 11. Humble launch 호환성 확인
 
 이 패키지의 launch 파일은 ROS 2 Humble 기준으로 다음 API만 사용한다.
 

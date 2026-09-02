@@ -217,7 +217,7 @@ JSON만 수정하면 Bridge 토픽은 생성될 수 있지만 HEVEN readiness �
 실행 중인 bring-up을 먼저 종료한 뒤 다음 순서로 검증한다.
 
 ```bash
-cd ~/2026_heven_ad_ws
+cd ~/2026_heven_jj_ws
 source /opt/ros/humble/setup.bash
 
 python3 -m json.tool \
@@ -242,7 +242,7 @@ cd ~/HEVEN_CARLA_PACKAGE
 
 ```bash
 source /opt/ros/humble/setup.bash
-source ~/2026_heven_ad_ws/install/setup.bash
+source ~/2026_heven_jj_ws/install/setup.bash
 ros2 launch heven_carla_bringup heven_bringup.launch.py
 ```
 
