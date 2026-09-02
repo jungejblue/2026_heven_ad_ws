@@ -1,4 +1,4 @@
-# 2026 HEVEN AD ROS 2 Workspace
+# 2026 HEVEN JJ ROS 2 Workspace
 
 CARLA 0.9.15, Ubuntu 22.04, ROS 2 Humble에서 `vehicle.heven.ev`와 HEVEN
 센서 구성을 ROS 토픽으로 제공하기 위한 colcon workspace이다.
@@ -9,7 +9,6 @@ CARLA 0.9.15, Ubuntu 22.04, ROS 2 Humble에서 `vehicle.heven.ev`와 HEVEN
 현재 구현은 차량 스폰, 시뮬레이션 시간 2초 안정화, 센서 부착, 초기 동기 세트
 확인 및 ROS 토픽 발행까지 사용자 CARLA 환경에서 정상 동작이 확인됐다.
 
-- [현재 구현 상태](src/heven_carla_bringup/docs/PROJECT_STATUS.md)
 - [센서 Config 수정 가이드](src/heven_carla_bringup/docs/SENSOR_CONFIG_GUIDE.md)
 
 ## 1. 구성
