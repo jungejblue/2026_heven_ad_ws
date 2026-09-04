@@ -19,6 +19,9 @@ CARLA 0.9.15, Ubuntu 22.04, ROS 2 Humble에서 `vehicle.heven.ev`와 HEVEN
 │   ├── map/
 │   ├── raw_model/
 │   ├── VehicleSkeleton/
+│   ├── heven_vehicle.blend
+│   ├── SK_heven_vehicle.fbx
+│   └── SM_sc_heven_vehicle.fbx
 ├── src/
 │   ├── carla-ros-bridge/          # ttgamage 포크 Git submodule
 │   └── heven_carla_bringup/
